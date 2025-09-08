@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Стратегические сессии с Эмином Алиевым</title>
+  <!-- Google Fonts (not a framework) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===== Base / Tokens (mobile‑first, < 50KB CSS) ===== */
+    :root{
+      --bg:#f7f8fa;          /* light background */
+      --surface:#ffffff;      /* cards, sections */
+      --text:#1f2937;         /* primary text */
+      --muted:#6b7280;        /* secondary text */
+      --primary:#2563eb;      /* blue 600 */
+      --primary-2:#3b82f6;    /* blue 500 */
+      --ring:rgba(37,99,235,.2);
+      --shadow:0 8px 24px rgba(0,0,0,.08);
+      --radius:16px;
+      --max:1120px;           /* content max width */
+    }
+
+    html{scroll-behavior:smooth}
+    *,*::before,*::after{box-sizing:border-box}
+    body{
+      margin:0; font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg); color:var(--text); line-height:1.65;
+    }
+    img{max-width:100%; display:block}
+    a{color:inherit}
+
+    /* Layout helpers */
+    .container{width:min(var(--max), 92%); margin-inline:auto}
+    .center{text-align:center}
+    .lead{color:var(--muted)}
+
+    /* Typography */
+    h1{font-size:clamp(28px,6vw,46px); line-height:1.1; margin:0}
+    h2{font-size:clamp(22px,4.6vw,32px); line-height:1.2; margin:0}
+    h3{font-size:20px; margin:0}
+    p{margin:12px 0 0}
+
+    /* Sections */
+    header.hero{padding:64px 0}
+    section{padding:48px 0}
+
+    /* Button */
+    .btn{display:inline-block; padding:14px 20px; border-radius:12px; font-weight:600; text-decoration:none; transition:.2s transform,.2s box-shadow}
+    .btn-primary{background:linear-gradient(45deg,var(--primary),var(--primary-2)); color:#fff; box-shadow:0 6px 18px var(--ring)}
+    .btn-primary:hover{transform:translateY(-2px); box-shadow:0 14px 28px var(--ring)}
+
+    /* Intro block */
+    .intro{display:grid; gap:24px; align-items:center}
+    .intro .photo{
+      width:176px; height:176px; margin:0 auto; border-radius:12px; overflow:hidden;
+      box-shadow:var(--shadow); border:4px solid #fff; background:#ddd
+    }
+    .intro p{color:#374151}
+
+    /* Approach steps */
+    .steps{display:grid; gap:20px; margin-top:28px}
+    .step{display:grid; grid-template-columns:auto 1fr; gap:16px; background:var(--surface); padding:18px; border-radius:var(--radius); box-shadow:var(--shadow)}
+    .num{height:44px; width:44px; border-radius:999px; display:grid; place-items:center; color:#fff; font-weight:700; background:var(--primary)}
+    .step p{color:var(--muted); margin-top:6px}
+
+    /* Benefits grid */
+    .benefits{display:grid; gap:16px; margin-top:28px}
+    .card{background:var(--surface); padding:18px; border-radius:var(--radius); box-shadow:var(--shadow); display:grid; grid-template-columns:auto 1fr; gap:14px}
+    .icon{height:32px; width:32px; color:var(--primary)}
+    .card h3{font-weight:600}
+    .card p{color:var(--muted)}
+
+    /* CTA band */
+    .cta{background:linear-gradient(180deg,#1d4ed8, #1e40af); color:#fff}
+    .cta .lead{color:#bfdbfe}
+
+    /* Footer */
+    footer{background:#eef2f7; color:#6b7280}
+
+    /* Sticky mobile CTA */
+    .mobile-cta{position:fixed; inset:auto 0 0 0; background:#fff; box-shadow:0 -8px 24px rgba(0,0,0,.08); padding:10px 14px; display:flex; justify-content:center; gap:12px; z-index:50}
+    .mobile-cta .btn{flex:1; text-align:center}
+
+    /* ===== Responsive (tablet & up) ===== */
+    @media (min-width: 720px){
+      header.hero{padding:80px 0}
+      .intro{grid-template-columns:240px 1fr; gap:32px}
+      .intro .photo{width:224px; height:224px}
+      .steps{gap:22px}
+      .benefits{grid-template-columns:1fr 1fr; gap:18px}
+      .mobile-cta{display:none}
+    }
+
+    /* ===== Responsive (desktop & up) ===== */
+    @media (min-width: 1024px){
+      .intro{grid-template-columns:280px 1fr}
+      .intro .photo{width:256px; height:256px}
+      .step{padding:22px}
+      .card{padding:22px}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Hero -->
+    <header class="hero center">
+      <h1>От стратегической неопределенности — к ясному плану действий. <span style="color:var(--primary)">За 10 дней.</span></h1>
+      <p class="lead" style="font-size:18px; margin-top:14px">Провожу стратегические сессии для руководителей, которые нацелены на реальный результат, а не на бесконечные обсуждения.</p>
+      <p style="margin-top:22px"><a class="btn btn-primary" href="https://tidycal.com/ai4/20" target="_blank" rel="noopener">Забронировать 20‑минутный звонок</a></p>
+    </header>
+
+    <!-- Intro -->
+    <section aria-labelledby="about">
+      <div class="intro">
+        <div class="photo" aria-hidden="true">
+          <img src="For Praktika v1.jpg" alt="Эмин Алиев" style="width:100%; height:100%; object-fit:cover"/>
+        </div>
+        <div>
+          <h2 id="about">Эмин Алиев, эксперт по стратегии и цифровой трансформации</h2>
+          <p style="margin-top:10px">Моя задача — превратить ваши амбиции в работающий план. Я объединяю экспертизу в коммерции, управлении и digital, чтобы ваша стратегическая сессия принесла измеримый операционный эффект в течение первого года.</p>
+          <p>Мой опыт включает руководство коммерцией в группе компаний, работу в BigTech лидерах (Meta*, Criteo) и запуск продуктовых и go‑to‑market инициатив. Я говорю на языке P&amp;L и показываю, как искусственный интеллект и новые технологии работают на конкретные бизнес‑метрики.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Approach -->
+    <section aria-labelledby="approach" style="background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:28px">
+      <h2 id="approach" class="center">Мой подход: три уровня глубины</h2>
+      <div class="steps">
+        <article class="step">
+          <div class="num">1</div>
+          <div>
+            <h3>Погружение в контекст и аналитика</h3>
+            <p>Чтобы сессия была максимально продуктивной с первой минуты, я провожу предварительный глубокий анализ. Я изучаю ваши бизнес‑цели, «священные коровы» и скрытую динамику внутри команды. Моя уникальная методика включает создание «ИИ‑двойников» ключевых участников — это позволяет смоделировать дискуссию и заранее проработать возражения. Все наши гипотезы проверяются данными, а не интуицией.</p>
+          </div>
+        </article>
+        <article class="step">
+          <div class="num">2</div>
+          <div>
+            <h3>Четкая фасилитация и принятие решений</h3>
+            <p>Я обеспечиваю энергичный и сфокусированный темп работы, где учтено мнение каждого, но ничто не уводит нас в сторону. Моя роль — не просто модератор, а катализатор решений. Я использую алгоритмы ИИ для анализа дискуссии в реальном времени, чтобы предоставлять обезличенные данные и дополнительные аргументы. Мы движемся по четкому пути: от определения фокуса через генерацию вариантов к выбору критериев, финальному решению и плану.</p>
+          </div>
+        </article>
+        <article class="step">
+          <div class="num">3</div>
+          <div>
+            <h3>Фокус на внедрении и результат</h3>
+            <p>Главный итог — не отчет, а готовность к действию. Вы получите детализированный план на следующие 90 дней с четкими KPI, зонами ответственности, картой рисков и контрольными точками. Все материалы структурированы и готовы к работе: карта принятых решений, визуальная дорожная карта (roadmap), список первоочередных шагов. Кроме того, вы получаете в распоряжение «ИИ‑двойников» команды и чат‑бот с полными материалами сессии для быстрых консультаций ваших сотрудников в будущем.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Benefits -->
+    <section aria-labelledby="benefits">
+      <h2 id="benefits" class="center">Почему клиенты выбирают меня</h2>
+      <div class="benefits">
+        <article class="card">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+          <div>
+            <h3>На 30–50% выше результативность</h3>
+            <p>Благодаря глубокой подготовке и технологиям, ваш план оказывается на 30–50% более реалистичным и ориентированным на внедрение.</p>
+          </div>
+        </article>
+        <article class="card">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <div>
+            <h3>Технологии без хайпа</h3>
+            <p>Я использую «ИИ‑двойников», чтобы оцифровать экспертизу команды. Вы сохраняете знания и ускоряете принятие решений.</p>
+          </div>
+        </article>
+        <article class="card">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.75A.75.75 0 013 4.5h.75m0 0h1.5m-1.5 0v.75m0 0v.75m0 0h1.5m0 0h.75m0 0h.75m0 0h.75m0 0h.75m0 0h.75m0 0h.75m0 0h.75m0 0h.75m0 0h.75m0 0h.75M4.5 6v12m0 0h1.5m-1.5 0h.75m0 0h.75m0 0h.75m0 0h.75M6 18v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V18m-4.875-3.375h4.875" />
+          </svg>
+          <div>
+            <h3>Жесткая фокусировка на коммерческом результате</h3>
+            <p>Каждая идея проверяется вопросом: «Как это повлияет на выручку, маржу, затраты и сроки окупаемости?».</p>
+          </div>
+        </article>
+        <article class="card">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 003 12c0 .778.099 1.533.284 2.253m0 0c.616 2.453 2.883 4.247 5.56 4.247m5.56 0c2.677 0 4.944-1.794 5.56-4.247m0 0A9.004 9.004 0 0112 21z" />
+          </svg>
+          <div>
+            <h3>Опыт работы в международной среде</h3>
+            <p>Я свободно провожу сессии на русском и английском для российских и международных команд, онлайн и офлайн.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <!-- CTA full‑width band -->
+  <section class="cta" id="book" aria-label="Заключительный призыв к действию">
+    <div class="container center" style="padding:56px 0">
+      <h2>Готовы превратить стратегию в измеримый результат?</h2>
+      <p class="lead" style="margin-top:10px; font-size:18px">Забронируйте 20‑минутный звонок без обязательств, чтобы обсудить ваши ключевые цели и понять, как мы можем помочь вашей команде выйти на новую траекторию роста.</p>
+      <p style="margin-top:20px"><a class="btn btn-primary" href="https://tidycal.com/ai4/20" target="_blank" rel="noopener">Забронировать 20‑минутный звонок</a></p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container center" style="padding:22px 0">
+      <small>&copy; 2025 Эмин Алиев. Все права защищены.</small><br><small>*запрещена в России</small>
+    </div>
+  </footer>
+
+  <!-- Sticky CTA (mobile only) -->
+  <div class="mobile-cta" role="region" aria-label="Быстрый вызов к действию">
+    <a class="btn btn-primary" href="https://tidycal.com/ai4/20" target="_blank" rel="noopener">Забронировать 20‑минутный звонок</a>
+  </div>
+</body>
+</html>
