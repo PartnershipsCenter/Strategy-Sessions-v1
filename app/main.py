@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Request
 
@@ -53,7 +54,7 @@ async def health():
 @app.post("/webhook/fireflies")
 async def handle_fireflies_webhook(
     request: Request,
-    x_hub_signature: str | None = Header(None),
+    x_hub_signature: Optional[str] = Header(None),
 ):
     body = await request.body()
 

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 from app.summarizer import MeetingSummary
 
@@ -6,12 +7,12 @@ from app.summarizer import MeetingSummary
 def build_summary_blocks(
     title: str,
     date: str,
-    attendees: list[str],
+    attendees: List[str],
     summary: MeetingSummary,
-    drive_link: str | None = None,
-) -> list[dict]:
+    drive_link: Optional[str] = None,
+) -> List[Dict]:
     """Build Slack Block Kit blocks for a meeting summary."""
-    blocks: list[dict] = [
+    blocks: List[Dict] = [
         {
             "type": "header",
             "text": {"type": "plain_text", "text": title[:150], "emoji": True},
