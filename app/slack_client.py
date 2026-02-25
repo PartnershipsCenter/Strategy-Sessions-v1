@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, List, Optional
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -12,13 +13,13 @@ class SlackClient:
         self._client = WebClient(token=token)
         self._client.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=3))
 
-    def find_channel_by_name(self, name: str) -> str | None:
+    def find_channel_by_name(self, name: str) -> Optional[str]:
         """Return the channel ID if it exists, None otherwise."""
         try:
             cursor = None
             while True:
                 resp = self._client.conversations_list(
-                    types="public_channel,private_channel",
+                    types="public_channel",
                     limit=200,
                     cursor=cursor,
                 )
@@ -51,7 +52,7 @@ class SlackClient:
                     return found
             raise RuntimeError(f"Failed to create channel: {e.response['error']}") from e
 
-    def post_message(self, channel_id: str, blocks: list[dict], fallback_text: str) -> str:
+    def post_message(self, channel_id: str, blocks: List[Dict], fallback_text: str) -> str:
         """Post a Block Kit message. Returns the message timestamp."""
         try:
             resp = self._client.chat_postMessage(

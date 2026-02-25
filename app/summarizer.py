@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import List, Dict
 
 import anthropic
 
@@ -19,9 +20,9 @@ Be concise but capture all important points. Attribute action items to specific 
 @dataclass
 class MeetingSummary:
     summary: str
-    key_decisions: list[str]
-    action_items: list[dict]
-    topics_discussed: list[str]
+    key_decisions: List[str]
+    action_items: List[Dict]
+    topics_discussed: List[str]
 
 
 async def summarize_transcript(api_key: str, transcript_text: str, title: str) -> MeetingSummary:

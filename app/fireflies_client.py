@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 import httpx
 
@@ -46,11 +47,11 @@ class TranscriptData:
     title: str
     date: str
     host_email: str
-    duration: float | None
-    speakers: list[str]
-    attendees: list[dict]
-    sentences: list[dict]
-    summary: dict
+    duration: Optional[float]
+    speakers: List[str]
+    attendees: List[Dict]
+    sentences: List[Dict]
+    summary: Dict
     full_text: str
 
 
@@ -90,7 +91,7 @@ async def fetch_transcript(api_key: str, meeting_id: str) -> TranscriptData:
     sentences = t.get("sentences") or []
 
     # Build full transcript text with speaker labels
-    lines: list[str] = []
+    lines = []
     for s in sentences:
         speaker = s.get("speaker_name", "Unknown")
         text = s.get("text", "")

@@ -1,4 +1,5 @@
 from io import BytesIO
+from typing import Dict, Optional
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -15,7 +16,7 @@ class GoogleDriveClient:
         )
         self._service = build("drive", "v3", credentials=credentials)
 
-    def _find_folder(self, name: str, parent_id: str | None = None) -> str | None:
+    def _find_folder(self, name: str, parent_id: Optional[str] = None) -> Optional[str]:
         """Find a folder by name under a parent. Returns folder ID or None."""
         query_parts = [
             f"name = '{name}'",
@@ -33,13 +34,13 @@ class GoogleDriveClient:
         files = result.get("files", [])
         return files[0]["id"] if files else None
 
-    def _get_or_create_folder(self, name: str, parent_id: str | None = None) -> str:
+    def _get_or_create_folder(self, name: str, parent_id: Optional[str] = None) -> str:
         """Find or create a folder. Returns the folder ID."""
         existing = self._find_folder(name, parent_id)
         if existing:
             return existing
 
-        metadata: dict = {"name": name, "mimeType": FOLDER_MIME}
+        metadata: Dict = {"name": name, "mimeType": FOLDER_MIME}
         if parent_id:
             metadata["parents"] = [parent_id]
 
@@ -53,7 +54,7 @@ class GoogleDriveClient:
         month_id = self._get_or_create_folder(f"{month:02d}", parent_id=year_id)
         return month_id
 
-    def upload_transcript(self, folder_id: str, filename: str, content: str) -> dict:
+    def upload_transcript(self, folder_id: str, filename: str, content: str) -> Dict:
         """Upload a text transcript to a folder. Returns file metadata with id and webViewLink."""
         media = MediaIoBaseUpload(
             BytesIO(content.encode("utf-8")),
