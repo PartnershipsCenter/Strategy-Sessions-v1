@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Google service account keys
+**/service_account*.json
+**/sa-key*.json
+*.json.key
