@@ -29,8 +29,25 @@ def main() -> None:
     app.add_handler(CommandHandler("showicp", show_icp))
     app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
 
-    logger.info("Booth Scanner Bot starting...")
-    app.run_polling()
+    if config.webhook_url:
+        # Webhook mode for Cloud Run / serverless platforms
+        webhook_path = "/webhook"
+        logger.info(
+            "Starting in webhook mode on port %d -> %s%s",
+            config.port,
+            config.webhook_url,
+            webhook_path,
+        )
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=config.port,
+            url_path=webhook_path,
+            webhook_url=f"{config.webhook_url}{webhook_path}",
+        )
+    else:
+        # Polling mode for local development
+        logger.info("Starting in polling mode...")
+        app.run_polling()
 
 
 if __name__ == "__main__":

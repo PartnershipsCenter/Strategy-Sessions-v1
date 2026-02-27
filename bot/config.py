@@ -10,6 +10,9 @@ class Config:
     claude_model: str = "claude-sonnet-4-6"
     db_path: str = "data/icp_store.db"
     max_companies_per_photo: int = 15
+    # Webhook settings for Cloud Run / serverless deployment
+    webhook_url: str = ""  # e.g. "https://my-bot-xyz.run.app"
+    port: int = 8080
 
 
 def load_config() -> Config:
@@ -29,4 +32,6 @@ def load_config() -> Config:
         tavily_api_key=required["TAVILY_API_KEY"],
         claude_model=os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6"),
         db_path=os.getenv("DB_PATH", "data/icp_store.db"),
+        webhook_url=os.getenv("WEBHOOK_URL", ""),
+        port=int(os.getenv("PORT", "8080")),
     )
