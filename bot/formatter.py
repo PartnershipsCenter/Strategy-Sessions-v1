@@ -39,6 +39,12 @@ def format_results(scored_companies: list[ScoredCompany]) -> str:
         if company.match_reason:
             lines.append(f"_{_escape_md(company.match_reason)}_")
 
+        if company.russian_speaking_leaders:
+            lines.append(
+                "\U0001f1f7\U0001f1fa "  # Russian flag emoji
+                + _escape_md(company.russian_speaking_leaders)
+            )
+
         if company.website:
             url_escaped = company.website.replace(")", "\\)")
             lines.append(f"[Website]({url_escaped})")

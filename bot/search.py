@@ -17,6 +17,7 @@ class CompanyResearch:
     website: str = ""
     description: str = ""
     key_facts: list[str] = field(default_factory=list)
+    leadership_info: str = ""  # Raw leadership/team search results
     search_failed: bool = False
 
 
@@ -68,12 +69,47 @@ async def _search_one_company(
         )
 
 
+async def _search_leadership(
+    client: AsyncTavilyClient, company: CompanyResearch
+) -> str:
+    """Search for a company's leadership team, LinkedIn profiles, and backgrounds."""
+    query = (
+        f"{company.name} CEO CTO CFO founder leadership team LinkedIn"
+    )
+
+    try:
+        response = await client.search(
+            query=query,
+            search_depth="basic",
+            topic="general",
+            max_results=5,
+            include_answer="basic",
+        )
+
+        snippets = []
+        answer = response.get("answer", "")
+        if answer:
+            snippets.append(answer)
+
+        for result in response.get("results", []):
+            content = result.get("content", "")
+            if content:
+                snippets.append(content)
+
+        return "\n---\n".join(snippets[:4])[:1500]  # Cap at 1500 chars
+
+    except Exception as e:
+        logger.warning("Leadership search failed for %s: %s", company.name, e)
+        return ""
+
+
 async def research_companies(
     config: Config, companies: list[CompanyInfo]
 ) -> list[CompanyResearch]:
-    """Research all companies concurrently via Tavily."""
+    """Research all companies concurrently via Tavily (company info + leadership)."""
     client = AsyncTavilyClient(api_key=config.tavily_api_key)
 
+    # Phase 1: Company research (concurrent)
     tasks = [_search_one_company(client, company) for company in companies]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -90,6 +126,20 @@ async def research_companies(
             )
         else:
             researched.append(result)
+
+    # Phase 2: Leadership research (concurrent)
+    leadership_tasks = [_search_leadership(client, r) for r in researched]
+    leadership_results = await asyncio.gather(*leadership_tasks, return_exceptions=True)
+
+    for i, leadership in enumerate(leadership_results):
+        if isinstance(leadership, str):
+            researched[i].leadership_info = leadership
+        else:
+            logger.warning(
+                "Leadership research failed for %s: %s",
+                researched[i].name,
+                leadership,
+            )
 
     logger.info(
         "Researched %d companies (%d failures)",

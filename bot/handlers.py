@@ -96,13 +96,13 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         company_names = [c.name for c in companies]
         await status_msg.edit_text(
             f"Found {len(companies)} companies: {', '.join(company_names)}\n"
-            "Researching each company..."
+            "Researching companies & leadership teams..."
         )
 
-        # Step 3: Web research (concurrent)
+        # Step 3: Web research + leadership research (concurrent)
         researched = await research_companies(config, companies)
 
-        await status_msg.edit_text("Matching against your ICP...")
+        await status_msg.edit_text("Scoring against your ICP...")
 
         # Step 4: ICP matching & scoring
         scored = await score_companies(config, researched, icp)
