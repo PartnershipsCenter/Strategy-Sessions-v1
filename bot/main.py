@@ -1,4 +1,7 @@
 import logging
+import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from telegram.ext import (
     ApplicationBuilder,
@@ -15,6 +18,26 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+
+class _HealthHandler(BaseHTTPRequestHandler):
+    """Minimal health check handler for Cloud Run."""
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, format, *args):
+        pass  # Suppress request logs
+
+
+def _start_health_server(port: int) -> None:
+    """Start a background HTTP server for Cloud Run health checks."""
+    server = HTTPServer(("0.0.0.0", port), _HealthHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    logger.info("Health check server started on port %d", port)
 
 
 def main() -> None:
@@ -44,8 +67,19 @@ def main() -> None:
             url_path=webhook_path,
             webhook_url=f"{config.webhook_url}{webhook_path}",
         )
+    elif os.getenv("K_SERVICE"):
+        # Running on Cloud Run but WEBHOOK_URL not set yet (first deploy).
+        # Start a health check server so the container becomes healthy,
+        # then use polling mode until WEBHOOK_URL is configured.
+        logger.info(
+            "Cloud Run detected but WEBHOOK_URL not set. "
+            "Starting health server + polling mode. "
+            "Set WEBHOOK_URL env var to switch to webhook mode."
+        )
+        _start_health_server(config.port)
+        app.run_polling()
     else:
-        # Polling mode for local development
+        # Local development
         logger.info("Starting in polling mode...")
         app.run_polling()
 
