@@ -25,7 +25,7 @@ async def _search_one_company(
     client: AsyncTavilyClient, company: CompanyInfo
 ) -> CompanyResearch:
     """Search for a single company and extract structured info."""
-    query = f"{company.name} company"
+    query = f"{company.name} company employees headcount funding"
     if company.booth_context and company.booth_context != "unknown":
         query += f" {company.booth_context}"
 
@@ -74,7 +74,8 @@ async def _search_leadership(
 ) -> str:
     """Search for a company's leadership team, LinkedIn profiles, and backgrounds."""
     query = (
-        f"{company.name} CEO CTO CFO founder leadership team LinkedIn"
+        f"{company.name} CEO CTO CFO founder leadership team"
+        f" LinkedIn site:linkedin.com"
     )
 
     try:
