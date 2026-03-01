@@ -17,15 +17,15 @@ class ScoredCompany:
     match_reason: str
     website: str
     summary: str
-    russian_speaking_leaders: str = ""  # Names/roles of likely Russian-speaking execs
+    russian_speaking_leaders: str = ""  # Names/roles of likely CIS-origin execs
     search_failed: bool = False
 
 
 MATCHER_PROMPT_TEMPLATE = """\
 You are a sales intelligence assistant. A user has defined their Ideal Customer \
 Profile (ICP) and has encountered companies at a conference. For each company, \
-you have research data AND leadership team information. Score how well each \
-company matches the ICP.
+you have research data, leadership team information, AND founder biographical data. \
+Score how well each company matches the ICP.
 
 ## User's ICP:
 {icp}
@@ -37,34 +37,62 @@ company matches the ICP.
 For each company, provide:
 1. "score": integer from 1 to 10 (10 = perfect ICP match)
 2. "match_reason": 1-2 sentences explaining why this score, including ICP fit \
-AND any Russian-speaking leadership signals found
+AND any CIS-origin leadership signals found
 3. "summary": one sentence describing what the company does
 4. "russian_speaking_leaders": a short string listing any executives who likely \
-speak Russian, based on the evidence below. Format: "Name (Role) - evidence". \
+speak Russian or come from CIS countries. Format: "Name (Role) - evidence". \
 If none found, use empty string "".
 
-## Russian-Speaking Executive Detection:
-Analyze the leadership_info field for each company. Look for these signals:
-- **Names**: Slavic/Russian first or last names (e.g., Sergey, Dmitry, Anastasia, \
-Andrey, Natalia, Mikhail, Ivanov, Petrov, Kozlov, Volkov, Novikov, etc.)
-- **Education**: Universities in Russia, Ukraine, Belarus, Kazakhstan, or other \
-CIS countries (e.g., MSU/MGU, MIPT, HSE, Bauman, ITMO, Novosibirsk State, \
-Kyiv Polytechnic, Belarusian State, etc.)
-- **Languages**: Any mention of Russian language proficiency on profiles
-- **Location history**: Work or education history in CIS countries
+## CIS-Origin / Russian-Speaking Executive Detection:
+Analyze BOTH the leadership_info AND founder_background fields for each company. \
+These are executives from CIS countries (Russia, Ukraine, Belarus, Armenia, Georgia, \
+Kazakhstan, Uzbekistan, etc.) who now live and work ANYWHERE in the world. They are \
+global professionals in the diaspora.
 
-When Russian-speaking leaders are detected, this is a STRONG positive signal. \
-Boost the score by 1-2 points. Mention the specific people and evidence in \
-match_reason.
+Look for these signals, in order of strength:
+
+### STRONG signals (high confidence):
+- **Explicit language/origin mentions**: "speaks Russian", "born in Moscow", \
+"grew up in Tbilisi", "moved from Kyiv", "emigrated from Belarus"
+- **CIS university education**: MSU/MGU, MIPT, HSE (Higher School of Economics), \
+Bauman, ITMO, Novosibirsk State, Tomsk State, Ural Federal, Kyiv Polytechnic (KPI), \
+Taras Shevchenko (Kyiv), Belarusian State (BSU), Yerevan State, Tbilisi State, \
+Nazarbayev University, KIMEP, Tashkent, or ANY university located in a CIS country
+- **Career history in CIS**: Early career at companies like Yandex, Mail.ru, Kaspersky, \
+JetBrains, VK, Ozon, Wildberries, Wargaming, EPAM, Luxoft, or any CIS-based company
+
+### MODERATE signals (medium confidence):
+- **Russian/Slavic names**: Sergey, Dmitry, Andrey, Alexey, Mikhail, Vladimir, Igor, \
+Oleg, Maxim, Artem, Pavel, Nikita, Anastasia, Natalia, Ekaterina, Olga, Tatiana, \
+Elena, Irina. Last names: -ov/-ova, -ev/-eva, -in/-ina, -sky/-skaya, -uk/-chuk, -enko
+- **Armenian names**: Aram, Armen, Tigran, Gagik, Hovhannes, Ashot, Hayk, Karen, \
+Levon, Vardan. Last names: -yan, -ian (Grigoryan, Petrosyan, Hakobyan, Sargsyan)
+- **Georgian names**: Giorgi, Nika, Lasha, Dato, Irakli, Zurab, Giga, Nino, Tamara. \
+Last names: -shvili, -dze, -adze (Giorgadze, Beridze, Chikovani)
+- **Common Jewish-Russian names**: Lev, Boris, Mark, Ilya, Arkady, Semyon, Roman, \
+Grigory, Felix, Eduard. Last names: Levin, Shapiro, Rabinovich, Goldberg, Friedman, \
+Kaplan, Brodsky, Reznikov, Berman, Vainberg
+
+### WEAK signals (only if combined with other evidence):
+- **Ambiguous Slavic-sounding names** that could be Polish, Czech, Serbian, etc.
+- **First name only matches** with no other supporting evidence
+
+When CIS-origin leaders are detected with STRONG or MODERATE signals, \
+boost the score by 1-3 points. Mention the specific people and evidence in \
+match_reason. Be specific about WHY you think someone is CIS-origin.
+
+IMPORTANT: These are diaspora executives — they live outside CIS countries. \
+Do NOT penalize for being based in London, SF, Berlin, etc. That's expected.
 
 Return a JSON array sorted by score descending. Example:
 [
   {{"name": "ExampleCorp", "score": 9, "match_reason": "B2B SaaS, 200 employees, \
-3 offices globally. CTO Dmitry Volkov (MIPT graduate) likely Russian-speaking.", \
+3 offices globally. CTO Armen Petrosyan (Armenian surname -yan) studied at Yerevan State \
+before Stanford MBA — strong CIS-origin signal.", \
 "summary": "Cloud data pipeline platform.", \
-"russian_speaking_leaders": "Dmitry Volkov (CTO) - MIPT education, Slavic name"}},
-  {{"name": "OtherInc", "score": 3, "match_reason": "Consumer app, single location, \
-no Russian-speaking leadership signals found.", "summary": "Mobile gaming studio.", \
+"russian_speaking_leaders": "Armen Petrosyan (CTO) - Armenian surname, Yerevan State education"}},
+  {{"name": "OtherInc", "score": 3, "match_reason": "Consumer app, single location. \
+No CIS-origin leadership signals found.", "summary": "Mobile gaming studio.", \
 "russian_speaking_leaders": ""}}
 ]
 
@@ -86,6 +114,7 @@ def _build_companies_json(companies: list[CompanyResearch]) -> str:
                 "description": c.description,
                 "key_facts": c.key_facts[:2],
                 "leadership_info": c.leadership_info[:1000],
+                "founder_background": c.founder_background[:1000],
                 "search_failed": c.search_failed,
             }
         )

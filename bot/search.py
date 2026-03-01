@@ -17,7 +17,8 @@ class CompanyResearch:
     website: str = ""
     description: str = ""
     key_facts: list[str] = field(default_factory=list)
-    leadership_info: str = ""  # Raw leadership/team search results
+    leadership_info: str = ""  # Leadership names, roles, Crunchbase/LinkedIn data
+    founder_background: str = ""  # Biographical deep-dive: education, origin, languages
     search_failed: bool = False
 
 
@@ -72,10 +73,10 @@ async def _search_one_company(
 async def _search_leadership(
     client: AsyncTavilyClient, company: CompanyResearch
 ) -> str:
-    """Search for a company's leadership team, LinkedIn profiles, and backgrounds."""
+    """Search for a company's leadership team across LinkedIn, Crunchbase, and general web."""
     query = (
-        f"{company.name} CEO CTO CFO founder leadership team"
-        f" LinkedIn site:linkedin.com"
+        f"{company.name} CEO CTO CFO COO CPO founder"
+        f" leadership team LinkedIn Crunchbase"
     )
 
     try:
@@ -97,17 +98,52 @@ async def _search_leadership(
             if content:
                 snippets.append(content)
 
-        return "\n---\n".join(snippets[:4])[:1500]  # Cap at 1500 chars
+        return "\n---\n".join(snippets[:4])[:1500]
 
     except Exception as e:
         logger.warning("Leadership search failed for %s: %s", company.name, e)
         return ""
 
 
+async def _search_founder_background(
+    client: AsyncTavilyClient, company: CompanyResearch
+) -> str:
+    """Deep search for founder/CEO biographical details: education, origin, languages."""
+    query = (
+        f"{company.name} founder CEO origin education university background"
+        f" biography born studied"
+    )
+
+    try:
+        response = await client.search(
+            query=query,
+            search_depth="basic",
+            topic="general",
+            max_results=5,
+            include_answer="basic",
+        )
+
+        snippets = []
+        answer = response.get("answer", "")
+        if answer:
+            snippets.append(answer)
+
+        for result in response.get("results", []):
+            content = result.get("content", "")
+            if content:
+                snippets.append(content)
+
+        return "\n---\n".join(snippets[:4])[:1500]
+
+    except Exception as e:
+        logger.warning("Background search failed for %s: %s", company.name, e)
+        return ""
+
+
 async def research_companies(
     config: Config, companies: list[CompanyInfo]
 ) -> list[CompanyResearch]:
-    """Research all companies concurrently via Tavily (company info + leadership)."""
+    """Research all companies concurrently via Tavily (company info + leadership + backgrounds)."""
     client = AsyncTavilyClient(api_key=config.tavily_api_key)
 
     # Phase 1: Company research (concurrent)
@@ -128,18 +164,34 @@ async def research_companies(
         else:
             researched.append(result)
 
-    # Phase 2: Leadership research (concurrent)
+    # Phase 2: Leadership + founder background research (all concurrent)
     leadership_tasks = [_search_leadership(client, r) for r in researched]
-    leadership_results = await asyncio.gather(*leadership_tasks, return_exceptions=True)
+    background_tasks = [_search_founder_background(client, r) for r in researched]
+    all_tasks = leadership_tasks + background_tasks
+    all_results = await asyncio.gather(*all_tasks, return_exceptions=True)
 
-    for i, leadership in enumerate(leadership_results):
-        if isinstance(leadership, str):
-            researched[i].leadership_info = leadership
+    n = len(researched)
+    leadership_results = all_results[:n]
+    background_results = all_results[n:]
+
+    for i in range(n):
+        # Leadership
+        if isinstance(leadership_results[i], str):
+            researched[i].leadership_info = leadership_results[i]
         else:
             logger.warning(
                 "Leadership research failed for %s: %s",
                 researched[i].name,
-                leadership,
+                leadership_results[i],
+            )
+        # Background
+        if isinstance(background_results[i], str):
+            researched[i].founder_background = background_results[i]
+        else:
+            logger.warning(
+                "Background research failed for %s: %s",
+                researched[i].name,
+                background_results[i],
             )
 
     logger.info(
