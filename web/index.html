@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conference Exhibitor Scanner</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Conference Exhibitor Scanner</h1>
+            <p class="subtitle">Scrape conference exhibitor lists, enrich them, and score against your ICP</p>
+        </header>
+
+        <!-- Input Form -->
+        <section id="input-section" class="card">
+            <div class="form-group">
+                <label for="icp-input">Your Ideal Customer Profile (ICP)</label>
+                <textarea
+                    id="icp-input"
+                    rows="4"
+                    placeholder="e.g. B2B SaaS, 50-500 employees, Series A+, selling to enterprise, cloud infrastructure / data / AI / cybersecurity"
+                ></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="url-input">Conference Exhibitor List URL</label>
+                <input
+                    type="url"
+                    id="url-input"
+                    placeholder="e.g. https://www.mwcbarcelona.com/exhibitors"
+                >
+                <span class="hint">Paste the URL of the exhibitor list page (not the conference homepage)</span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="name-input">Conference Name <span class="optional">(optional)</span></label>
+                    <input
+                        type="text"
+                        id="name-input"
+                        placeholder="Auto-detected from URL"
+                    >
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="force-rescrape">
+                        Force re-scrape
+                    </label>
+                </div>
+            </div>
+
+            <button id="scan-btn" class="btn-primary" onclick="startScan()">
+                Scan Exhibitors
+            </button>
+        </section>
+
+        <!-- Progress Section -->
+        <section id="progress-section" class="card" style="display:none;">
+            <h2>Pipeline Progress</h2>
+            <div class="progress-stages">
+                <div class="stage" id="stage-scrape_list">
+                    <span class="stage-icon">1</span>
+                    <span class="stage-label">Scraping exhibitor list</span>
+                    <span class="stage-status" id="status-scrape_list"></span>
+                </div>
+                <div class="stage" id="stage-scrape_details">
+                    <span class="stage-icon">2</span>
+                    <span class="stage-label">Scraping detail pages</span>
+                    <span class="stage-status" id="status-scrape_details"></span>
+                </div>
+                <div class="stage" id="stage-enrich">
+                    <span class="stage-icon">3</span>
+                    <span class="stage-label">Enriching via web search</span>
+                    <span class="stage-status" id="status-enrich"></span>
+                </div>
+                <div class="stage" id="stage-score">
+                    <span class="stage-icon">4</span>
+                    <span class="stage-label">Scoring against ICP</span>
+                    <span class="stage-status" id="status-score"></span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p class="progress-message" id="progress-message">Starting...</p>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-section" class="card" style="display:none;">
+            <div class="results-header">
+                <h2 id="results-title">Results</h2>
+                <div class="results-actions">
+                    <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+                    <button class="btn-secondary" onclick="newScan()">New Scan</button>
+                </div>
+            </div>
+
+            <div class="results-summary" id="results-summary"></div>
+
+            <table class="results-table" id="results-table">
+                <thead>
+                    <tr>
+                        <th class="col-rank">#</th>
+                        <th class="col-score sortable" onclick="sortResults('score')">Score</th>
+                        <th class="col-company">Company</th>
+                        <th class="col-summary">Summary</th>
+                        <th class="col-reason">Why</th>
+                        <th class="col-links">Links</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body">
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Previously Scraped -->
+        <section id="history-section" class="card">
+            <h2>Previously Scraped Conferences</h2>
+            <div id="history-list" class="history-list">
+                <p class="muted">Loading...</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
