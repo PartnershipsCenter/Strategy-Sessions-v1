@@ -3,6 +3,13 @@
 import logging
 import os
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from project root (handles uvicorn subprocess CWD changes)
+_project_root = Path(__file__).resolve().parent.parent
+load_dotenv(_project_root / ".env")
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

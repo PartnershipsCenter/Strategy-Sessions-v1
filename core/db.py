@@ -127,20 +127,15 @@ class DB:
     async def upsert_conference(self, name: str, url: str) -> int:
         """Create or get a conference, return its ID."""
         async with aiosqlite.connect(self.db_path) as db:
-            # Try to find existing
             cursor = await db.execute(
-                "SELECT id FROM conferences WHERE url = ?", (url,)
-            )
-            row = await cursor.fetchone()
-            if row:
-                return row[0]
-            # Create new
-            cursor = await db.execute(
-                "INSERT INTO conferences (name, url) VALUES (?, ?)",
+                """INSERT INTO conferences (name, url) VALUES (?, ?)
+                   ON CONFLICT(url) DO UPDATE SET name = excluded.name
+                   RETURNING id""",
                 (name, url),
             )
+            row = await cursor.fetchone()
             await db.commit()
-            return cursor.lastrowid
+            return row[0]
 
     async def update_conference_count(
         self, conference_id: int, count: int
@@ -270,7 +265,7 @@ class DB:
             db.row_factory = aiosqlite.Row
             sql = "SELECT * FROM exhibitors WHERE conference_id = ?"
             if only_unenriched:
-                sql += " AND enriched_at IS NULL AND description = ''"
+                sql += " AND enriched_at IS NULL"
             sql += " ORDER BY company_name"
             cursor = await db.execute(sql, (conference_id,))
             rows = await cursor.fetchall()

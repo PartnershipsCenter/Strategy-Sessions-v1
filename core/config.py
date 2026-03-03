@@ -2,6 +2,15 @@
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Always try to load .env from project root
+_project_root = Path(__file__).resolve().parent.parent
+_env_file = _project_root / ".env"
+if _env_file.exists():
+    load_dotenv(str(_env_file), override=True)
 
 
 @dataclass(frozen=True)

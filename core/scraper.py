@@ -595,28 +595,59 @@ class ConferenceScraper:
                 )
                 await page.wait_for_timeout(1500)
 
+                # Build list of conference-related domains to exclude
+                detail_domain = urlparse(exhibitor.detail_page_url).netloc.lower()
+                # Exclude the conference domain and common related domains
+                conference_domains = {detail_domain}
+                # Add parent domain (e.g. mwcbarcelona.com -> also block 4yfn.com)
+                parts = detail_domain.split(".")
+                if len(parts) >= 2:
+                    base_domain = ".".join(parts[-2:])
+                    conference_domains.add(base_domain)
+
+                # Common conference platform domains to always exclude
+                _platform_domains = [
+                    "4yfn.com", "gsma.com", "swapcard.com", "grip.events",
+                    "mapyourshow.com", "a]2z.com", "jujama.com",
+                    "eventbrite.com", "hopin.com", "brella.io",
+                ]
+
                 # Extract links
                 links = await page.query_selector_all("a[href]")
+                website_candidates = []
+
                 for link_el in links:
                     try:
                         href = (await link_el.get_attribute("href")) or ""
                         href_lower = href.lower()
                         text = ((await link_el.inner_text()) or "").strip().lower()
 
-                        # Website link
-                        if not exhibitor.website_url:
-                            if ("visit website" in text or "company website" in text
-                                    or "website" in text or "official site" in text):
+                        if not href.startswith("http"):
+                            continue
+
+                        link_domain = urlparse(href).netloc.lower()
+
+                        # Skip conference site, social media, and platform links
+                        skip_domains = [
+                            "linkedin.com", "twitter.com", "x.com",
+                            "facebook.com", "instagram.com", "youtube.com",
+                            "github.com", "tiktok.com",
+                        ] + _platform_domains
+                        is_conference = any(
+                            d in link_domain for d in conference_domains
+                        )
+                        is_skip = any(d in link_domain for d in skip_domains)
+
+                        # Website link — explicit text match (highest priority)
+                        if ("visit website" in text or "company website" in text
+                                or text == "website" or "official site" in text
+                                or "visit site" in text or "go to website" in text):
+                            if not is_conference:
                                 exhibitor.website_url = href
-                            elif (href.startswith("http") and
-                                  not any(d in href_lower for d in [
-                                      "linkedin.com", "twitter.com", "facebook.com",
-                                      "instagram.com", "youtube.com",
-                                      urlparse(exhibitor.detail_page_url).netloc,
-                                  ])):
-                                # External link that's not social media — likely company site
-                                if not exhibitor.website_url:
-                                    exhibitor.website_url = href
+
+                        # External link candidate (lower priority)
+                        elif not is_conference and not is_skip:
+                            website_candidates.append(href)
 
                         # LinkedIn
                         if not exhibitor.linkedin_url and "linkedin.com" in href_lower:
@@ -630,6 +661,10 @@ class ConferenceScraper:
 
                     except Exception:
                         continue
+
+                # Use first external link candidate if no explicit website found
+                if not exhibitor.website_url and website_candidates:
+                    exhibitor.website_url = website_candidates[0]
 
                 # Extract description from page text
                 if not exhibitor.description:
