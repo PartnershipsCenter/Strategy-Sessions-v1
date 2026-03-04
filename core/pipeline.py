@@ -236,13 +236,8 @@ async def run_pipeline(
             result.results = results
             result.total_scored = len(results)
 
-        await progress(
-            "complete",
-            f"Done! Top {len(result.results)} exhibitors scored.",
-            len(result.results),
-            len(result.results),
-        )
-
+        # Note: we do NOT send a "complete" event here — the caller
+        # (api/routes.py) sends it with the scoring_run_id attached.
         return result
 
     except Exception as e:
