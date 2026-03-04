@@ -579,6 +579,10 @@ class ConferenceScraper:
         total = min(len(detail_exhibitors), self.max_detail_pages)
         page = await context.new_page()
 
+        # Dismiss cookie/consent banners on the first page load
+        # so they don't interfere with subsequent detail pages
+        cookie_dismissed = False
+
         for i, exhibitor in enumerate(detail_exhibitors[:total]):
             try:
                 await self.on_progress(
@@ -595,6 +599,25 @@ class ConferenceScraper:
                 )
                 await page.wait_for_timeout(1500)
 
+                # Dismiss cookie banner on first detail page visit
+                if not cookie_dismissed:
+                    try:
+                        for btn_sel in [
+                            "#onetrust-accept-btn-handler",
+                            "#onetrust-reject-all-handler",
+                            "button:has-text('Accept All')",
+                            "button:has-text('Reject All')",
+                        ]:
+                            btn = await page.query_selector(btn_sel)
+                            if btn and await btn.is_visible():
+                                await btn.click()
+                                await page.wait_for_timeout(500)
+                                cookie_dismissed = True
+                                break
+                    except Exception:
+                        pass
+                    cookie_dismissed = True  # Don't retry on every page
+
                 # Build list of conference-related domains to exclude
                 detail_domain = urlparse(exhibitor.detail_page_url).netloc.lower()
                 # Exclude the conference domain and common related domains
@@ -607,13 +630,40 @@ class ConferenceScraper:
 
                 # Common conference platform domains to always exclude
                 _platform_domains = [
-                    "4yfn.com", "gsma.com", "swapcard.com", "grip.events",
-                    "mapyourshow.com", "a]2z.com", "jujama.com",
+                    "4yfn.com", "gsma.com", "gsmaadvance.com",
+                    "swapcard.com", "grip.events",
+                    "mapyourshow.com", "a2z.com", "jujama.com",
                     "eventbrite.com", "hopin.com", "brella.io",
+                    "servicesshowcase.gsma.com", "membership.gsma.com",
+                    # Common MWC sibling events
+                    "mwcdoha.com", "mwckigali.com", "mwcshanghai.com",
+                    "m360series.com", "novasummit.com",
+                    "mobileworldlive.com",
+                    # App stores
+                    "apple.com", "play.google.com", "appgallery.huawei.com",
+                    # Cookie/tracking
+                    "onetrust.com",
                 ]
 
+                # Try to scope link extraction to the main content area
+                # to avoid footer/header sponsor links — but only if the
+                # container actually has links (some sites put content
+                # outside <main>)
+                link_scope = page
+                for content_sel in [
+                    "[class*='exhibitor']", "[class*='profile']",
+                    "[class*='detail']", "article", "[role='main']",
+                    "main",
+                ]:
+                    container = await page.query_selector(content_sel)
+                    if container:
+                        container_links = await container.query_selector_all("a[href]")
+                        if len(container_links) >= 2:
+                            link_scope = container
+                            break
+
                 # Extract links
-                links = await page.query_selector_all("a[href]")
+                links = await link_scope.query_selector_all("a[href]")
                 website_candidates = []
 
                 for link_el in links:
@@ -627,31 +677,53 @@ class ConferenceScraper:
 
                         link_domain = urlparse(href).netloc.lower()
 
-                        # Skip conference site, social media, and platform links
-                        skip_domains = [
-                            "linkedin.com", "twitter.com", "x.com",
-                            "facebook.com", "instagram.com", "youtube.com",
-                            "github.com", "tiktok.com",
-                        ] + _platform_domains
+                        # Skip conference site and platform links
                         is_conference = any(
                             d in link_domain for d in conference_domains
                         )
-                        is_skip = any(d in link_domain for d in skip_domains)
+                        is_platform = any(
+                            d in link_domain for d in _platform_domains
+                        )
+
+                        # Social media domains (excluding LinkedIn which
+                        # gets special handling below)
+                        social_domains = [
+                            "twitter.com", "x.com", "facebook.com",
+                            "instagram.com", "youtube.com", "github.com",
+                            "tiktok.com",
+                        ]
+                        is_social = any(d in link_domain for d in social_domains)
+                        is_skip = is_conference or is_platform or is_social
 
                         # Website link — explicit text match (highest priority)
-                        if ("visit website" in text or "company website" in text
-                                or text == "website" or "official site" in text
-                                or "visit site" in text or "go to website" in text):
-                            if not is_conference:
+                        # Use startswith/in to handle "website\nwww.example.com"
+                        text_first_line = text.split("\n")[0].strip()
+                        if (text_first_line == "website"
+                                or "visit website" in text
+                                or "company website" in text
+                                or "official site" in text
+                                or "visit site" in text
+                                or "go to website" in text):
+                            if not is_conference and not is_platform:
                                 exhibitor.website_url = href
 
                         # External link candidate (lower priority)
-                        elif not is_conference and not is_skip:
+                        # Only consider links with visible text — empty-text
+                        # links are typically sponsor/partner logo images
+                        elif (not is_skip
+                              and "linkedin.com" not in link_domain
+                              and text.strip()):
                             website_candidates.append(href)
 
-                        # LinkedIn
-                        if not exhibitor.linkedin_url and "linkedin.com" in href_lower:
-                            exhibitor.linkedin_url = href
+                        # LinkedIn — only company pages, not conference showcase
+                        if "linkedin.com" in link_domain:
+                            linkedin_path = urlparse(href).path.lower()
+                            # Accept /company/ and /in/ links
+                            # Reject /showcase/ links (conference pages)
+                            if ("/company/" in linkedin_path
+                                    or "/in/" in linkedin_path):
+                                if not exhibitor.linkedin_url:
+                                    exhibitor.linkedin_url = href
 
                         # Contact
                         if not exhibitor.contact_url:
@@ -669,20 +741,45 @@ class ConferenceScraper:
                 # Extract description from page text
                 if not exhibitor.description:
                     try:
-                        # Look for description in common containers
+                        # Strategy 1: CSS selectors for description containers
                         desc_selectors = [
                             "[class*='description']", "[class*='about']",
                             "[class*='summary']", "[class*='bio']",
-                            "[class*='content'] p", ".profile-description",
-                            "article p", "main p",
+                            ".profile-description",
                         ]
                         for sel in desc_selectors:
                             el = await page.query_selector(sel)
                             if el:
-                                text = (await el.inner_text()).strip()
-                                if len(text) > 20:
-                                    exhibitor.description = text[:500]
+                                desc_text = (await el.inner_text()).strip()
+                                if len(desc_text) > 20:
+                                    exhibitor.description = desc_text[:500]
                                     break
+
+                        # Strategy 2: Find the longest paragraph in <main>
+                        # or in the page that mentions the company name
+                        if not exhibitor.description:
+                            company_first = exhibitor.company_name.split()[0].lower()
+                            body_text = await page.evaluate("() => document.body.innerText")
+                            best_para = ""
+                            for para in body_text.split("\n"):
+                                para = para.strip()
+                                if len(para) < 30:
+                                    continue
+                                # Skip known boilerplate
+                                if any(bp in para.lower() for bp in [
+                                    "only at mwc", "cookie", "privacy",
+                                    "partners & sponsors", "stay up to date",
+                                    "buy a pass", "log in",
+                                ]):
+                                    continue
+                                # Prefer paragraphs that mention the company
+                                if company_first in para.lower():
+                                    if len(para) > len(best_para):
+                                        best_para = para
+                                elif not best_para and len(para) > 50:
+                                    best_para = para
+                            if best_para:
+                                exhibitor.description = best_para[:500]
                     except Exception:
                         pass
 
