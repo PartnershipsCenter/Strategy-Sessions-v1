@@ -98,7 +98,8 @@ class ConferenceScraper:
                 if not exhibitors:
                     return []
 
-                # Pass 2: Scrape detail pages
+                # Pass 2: Scrape detail pages (skip if table extraction
+                # already provided rich data — no detail pages to visit)
                 detail_count = sum(1 for e in exhibitors if e.detail_page_url)
                 if detail_count > 0:
                     await self.on_progress(
@@ -126,7 +127,7 @@ class ConferenceScraper:
         page.on("response", self._capture_api_response)
 
         try:
-            await page.goto(url, wait_until="networkidle", timeout=30000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         except Exception as e:
             logger.warning("Page load timeout/error for %s: %s", url, e)
             try:
@@ -134,8 +135,8 @@ class ConferenceScraper:
             except Exception:
                 pass
 
-        # Wait for content to render
-        await page.wait_for_timeout(3000)
+        # Wait for content to render (JS frameworks, lazy loading)
+        await page.wait_for_timeout(5000)
 
         # Strategy 1: Check for API endpoint
         api = self._detect_api_endpoint(url)
@@ -431,13 +432,20 @@ class ConferenceScraper:
     ) -> list[ScrapedExhibitor]:
         """Extract exhibitor data from the current page using DOM inspection.
 
-        This method tries structured selectors first, then falls back to
-        returning raw text + links for LLM extraction.
+        Tries multiple strategies in order:
+        1. Table-based extraction (GDC-style: tables with Company/Booth columns
+           and expandable rows containing description + website)
+        2. Card/list CSS patterns (MWC-style: repeating card elements)
+        3. Link-based extraction (fallback: links pointing to detail pages)
         """
+        # Strategy 1: Table-based extraction
+        table_exhibitors = await self._extract_from_tables(page, base_url)
+        if table_exhibitors:
+            return table_exhibitors
+
         exhibitors = []
 
-        # Strategy: look for repeating card/list patterns
-        # Try common CSS selector patterns for exhibitor cards
+        # Strategy 2: look for repeating card/list patterns
         selectors = [
             "[class*='exhibitor']", "[class*='sponsor']", "[class*='company']",
             "[class*='vendor']", "[class*='partner']", "[class*='brand']",
@@ -463,7 +471,7 @@ class ConferenceScraper:
             except Exception:
                 continue
 
-        # Fallback: look for links that point to exhibitor detail pages
+        # Strategy 3: look for links that point to exhibitor detail pages
         all_links = await page.query_selector_all("a[href]")
         seen_names = set()
 
@@ -496,6 +504,207 @@ class ConferenceScraper:
                         ))
             except Exception:
                 continue
+
+        return exhibitors
+
+    async def _extract_from_tables(
+        self, page: Page, base_url: str
+    ) -> list[ScrapedExhibitor]:
+        """Extract exhibitors from HTML tables with Company/Booth columns.
+
+        Handles pages like GDC where all exhibitor data (name, booth,
+        description, website, social links) is embedded in table rows
+        with expandable content — no detail pages needed.
+        """
+        result = await page.evaluate("""() => {
+            const tables = document.querySelectorAll('table');
+            const exhibitors = [];
+
+            for (const table of tables) {
+                // Check if this table has Company/Booth-style headers
+                const headers = Array.from(table.querySelectorAll('th'))
+                    .map(h => h.textContent.trim().toLowerCase());
+                const hasCompanyCol = headers.some(
+                    h => h.includes('company') || h.includes('exhibitor')
+                       || h.includes('name')
+                );
+                if (!hasCompanyCol) continue;
+
+                const rows = table.querySelectorAll('tbody tr');
+                for (const row of rows) {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length < 1) continue;
+
+                    const mainCell = cells[0];
+
+                    // Company name: look for span.company-name or
+                    // strong/heading text
+                    let name = '';
+                    const nameEl = mainCell.querySelector(
+                        'span.company-name, [class*="company-name"]'
+                    );
+                    if (nameEl) {
+                        name = nameEl.textContent.trim();
+                    } else {
+                        // Fallback: first strong or heading
+                        const strong = mainCell.querySelector('strong, h2, h3, h4');
+                        if (strong) {
+                            name = strong.textContent.trim();
+                        }
+                    }
+                    if (!name || name.length < 2) continue;
+
+                    // Booth: second cell if it exists
+                    let booth = '';
+                    if (cells.length >= 2) {
+                        booth = cells[1].textContent.trim();
+                    }
+
+                    // Links: extract website, linkedin, social
+                    const links = mainCell.querySelectorAll('a[href]');
+                    let website = '';
+                    let linkedin = '';
+                    let description = '';
+                    let websiteFallback = '';
+
+                    // Look for hidden expandable div (GDC pattern:
+                    // <div id="id-..." style="display:none">content</div>)
+                    const hiddenDiv = mainCell.querySelector(
+                        'div[style*="display"], div[id^="id-"]'
+                    );
+
+                    // Check for explicit "Website" label in the expandable area
+                    // GDC pattern: <strong>Website</strong><br><a href="url">
+                    const searchScope = hiddenDiv || mainCell;
+                    const strongs = searchScope.querySelectorAll('strong');
+                    for (const s of strongs) {
+                        if (s.textContent.trim().toLowerCase() === 'website') {
+                            let sibling = s.nextElementSibling;
+                            while (sibling) {
+                                if (sibling.tagName === 'A') {
+                                    const href = sibling.getAttribute('href');
+                                    if (href && href.startsWith('http')) {
+                                        website = href;
+                                    }
+                                    break;
+                                }
+                                sibling = sibling.nextElementSibling;
+                            }
+                            break;
+                        }
+                    }
+
+                    for (const a of links) {
+                        const href = a.getAttribute('href') || '';
+                        if (!href.startsWith('http')) continue;
+
+                        const domain = (() => {
+                            try { return new URL(href).hostname.toLowerCase(); }
+                            catch(e) { return ''; }
+                        })();
+
+                        const linkText = (a.textContent || '').trim();
+
+                        // LinkedIn
+                        if (domain.includes('linkedin.com')) {
+                            if (!linkedin) linkedin = href;
+                            continue;
+                        }
+
+                        // Social media (skip for website candidates)
+                        const socialDomains = [
+                            'twitter.com', 'x.com', 'facebook.com',
+                            'instagram.com', 'youtube.com', 'tiktok.com',
+                            'bsky.app', 'threads.net', 'mastodon.social',
+                        ];
+                        if (socialDomains.some(d => domain.includes(d))) {
+                            continue;
+                        }
+
+                        // Skip # links (expand toggles)
+                        if (href === '#' || href.startsWith('#')) continue;
+
+                        // Track first external link as fallback website
+                        if (!websiteFallback && linkText) {
+                            websiteFallback = href;
+                        }
+                    }
+
+                    // Use fallback if no explicit Website label found
+                    if (!website && websiteFallback) {
+                        website = websiteFallback;
+                    }
+
+                    // Description: extract from hidden div's textContent
+                    // textContent includes hidden text but doesn't add
+                    // newlines for <br> — so we use innerHTML-based parsing
+                    if (hiddenDiv) {
+                        // Get innerHTML, split on <br> and tags to get lines
+                        const html = hiddenDiv.innerHTML;
+                        // Remove all HTML tags and split on <br>, </p>, etc.
+                        const rawText = html
+                            .replace(/<br\\s*\\/?>/gi, '\\n')
+                            .replace(/<\\/?(p|div|li|h[1-6])[^>]*>/gi, '\\n')
+                            .replace(/<[^>]+>/g, '')
+                            .replace(/&amp;/g, '&')
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&nbsp;/g, ' ')
+                            .replace(/&#?\\w+;/g, '');
+                        const lines = rawText.split('\\n')
+                            .map(l => l.trim())
+                            .filter(l => l.length > 0);
+                        const descParts = [];
+                        for (const line of lines) {
+                            const ll = line.toLowerCase();
+                            // Stop at "Website" label
+                            if (ll === 'website'
+                                || ll.startsWith('website')) break;
+                            // Stop at URL-like text
+                            if (line.match(/^(https?:|www\\.)/i)) break;
+                            // Skip domain-like short text
+                            if (line.match(/^[a-z0-9-]+\\.[a-z]{2,}/i)
+                                && line.length < 60) break;
+                            // Skip booth duplicates
+                            if (booth && line === booth) continue;
+                            // Skip empty-ish lines
+                            if (line.length < 3) continue;
+                            descParts.push(line);
+                        }
+                        description = descParts.join(' ').trim();
+                        if (description.length > 500) {
+                            description = description.substring(0, 500);
+                        }
+                    }
+
+                    exhibitors.push({
+                        name, booth, website, linkedin, description,
+                    });
+                }
+            }
+            return exhibitors;
+        }""")
+
+        if not result or len(result) < 3:
+            return []
+
+        logger.info("Table extraction found %d exhibitors", len(result))
+
+        exhibitors = []
+        seen = set()
+        for item in result:
+            name = item.get("name", "").strip()
+            key = name.lower()
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            exhibitors.append(ScrapedExhibitor(
+                company_name=name,
+                booth_location=item.get("booth", ""),
+                website_url=item.get("website", ""),
+                linkedin_url=item.get("linkedin", ""),
+                description=item.get("description", ""),
+            ))
 
         return exhibitors
 
