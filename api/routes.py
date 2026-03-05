@@ -159,30 +159,31 @@ async def list_conferences():
 
 @router.get("/api/export/{scoring_run_id}")
 async def export_csv(scoring_run_id: int):
-    """Export results as CSV."""
+    """Export all scored results as CSV."""
     config = load_config()
     db = DB(config.db_path)
     await db.init()
 
-    results = await db.get_scored_results(scoring_run_id, limit=50)
+    # Export ALL scored results (no limit)
+    results = await db.get_scored_results(scoring_run_id, limit=10000)
 
     lines = [
-        "Rank,Company,Score,Summary,Why,Website,LinkedIn,Contact,Booth,Categories"
+        "Rank,Company,Score,Summary,Why,Website,LinkedIn,Contact,Booth,Categories,CIS Contact"
     ]
     for i, r in enumerate(results):
         cats = "; ".join(r.categories) if r.categories else ""
-        # Escape CSV fields
         fields = [
             str(i + 1),
             _csv_escape(r.company_name),
             str(r.score),
             _csv_escape(r.summary),
             _csv_escape(r.reasoning),
-            r.website_url,
-            r.linkedin_url,
-            r.contact_url,
-            r.booth_location,
+            _csv_escape(r.website_url),
+            _csv_escape(r.linkedin_url),
+            _csv_escape(r.contact_url),
+            _csv_escape(r.booth_location),
             _csv_escape(cats),
+            _csv_escape(r.russian_speaking_leaders or ""),
         ]
         lines.append(",".join(fields))
 

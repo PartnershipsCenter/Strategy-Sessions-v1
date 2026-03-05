@@ -172,54 +172,112 @@ function renderResults(results) {
 
     results.forEach((r, i) => {
         const tr = document.createElement('tr');
+        tr.className = 'result-row';
 
         // Score class
         let scoreClass = 'score-low';
         if (r.score >= 8) scoreClass = 'score-high';
         else if (r.score >= 5) scoreClass = 'score-mid';
 
-        // Categories
-        const cats = (r.categories || [])
-            .map(c => `<span>${escHtml(c)}</span>`)
-            .join('');
+        // Company name — clickable link to website if available
+        const companyNameHtml = r.website_url
+            ? `<a href="${escAttr(r.website_url)}" target="_blank" rel="noopener" class="company-link" onclick="event.stopPropagation()">${escHtml(r.company_name)}</a>`
+            : `<span>${escHtml(r.company_name)}</span>`;
 
-        // Links
-        const links = [];
+        // Quick links (inline, compact)
+        const quickLinks = [];
         if (r.website_url)
-            links.push(`<a href="${escHtml(r.website_url)}" target="_blank" rel="noopener">Website</a>`);
+            quickLinks.push(`<a href="${escAttr(r.website_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>`);
         if (r.linkedin_url)
-            links.push(`<a href="${escHtml(r.linkedin_url)}" target="_blank" rel="noopener">LinkedIn</a>`);
+            quickLinks.push(`<a href="${escAttr(r.linkedin_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">LinkedIn</a>`);
         if (r.contact_url)
-            links.push(`<a href="${escHtml(r.contact_url)}" target="_blank" rel="noopener">Contact</a>`);
-        if (r.detail_page_url)
-            links.push(`<a href="${escHtml(r.detail_page_url)}" target="_blank" rel="noopener">Conference page</a>`);
+            quickLinks.push(`<a href="${escAttr(r.contact_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Contact</a>`);
 
         // CIS leaders
         let cisBadge = '';
         if (r.russian_speaking_leaders) {
-            cisBadge = `<div class="cis-badge">\u{1F1F7}\u{1F1FA} ${escHtml(r.russian_speaking_leaders)}</div>`;
+            cisBadge = `<span class="cis-badge">\u{1F1F7}\u{1F1FA} ${escHtml(r.russian_speaking_leaders)}</span>`;
         }
 
         tr.innerHTML = `
             <td class="col-rank">${r.rank}</td>
             <td class="col-score"><span class="score-badge ${scoreClass}">${r.score}</span></td>
             <td class="col-company">
-                <div class="company-name">${escHtml(r.company_name)}</div>
-                ${r.booth_location ? `<div class="company-categories"><span>${escHtml(r.booth_location)}</span></div>` : ''}
-                ${cats ? `<div class="company-categories">${cats}</div>` : ''}
+                <div class="company-name">${companyNameHtml}</div>
+                ${r.booth_location ? `<div class="booth-tag">${escHtml(r.booth_location)}</div>` : ''}
             </td>
             <td class="col-summary">${escHtml(r.summary || r.description || '')}</td>
-            <td class="col-reason">
-                ${escHtml(r.reasoning)}
-                ${cisBadge}
-            </td>
             <td class="col-links">
-                <div class="link-list">${links.join('')}</div>
+                <div class="link-list">${quickLinks.join('')}</div>
             </td>
         `;
 
+        // Click row to expand detail panel
+        tr.addEventListener('click', () => toggleDetail(tr, r));
         tbody.appendChild(tr);
     });
+}
+
+function toggleDetail(row, r) {
+    // If already expanded, collapse
+    const existing = row.nextElementSibling;
+    if (existing && existing.classList.contains('detail-row')) {
+        existing.remove();
+        row.classList.remove('expanded');
+        return;
+    }
+
+    // Collapse any other open detail
+    const openDetail = document.querySelector('.detail-row');
+    if (openDetail) {
+        openDetail.previousElementSibling.classList.remove('expanded');
+        openDetail.remove();
+    }
+
+    row.classList.add('expanded');
+
+    const detailTr = document.createElement('tr');
+    detailTr.className = 'detail-row';
+
+    // Build detail content
+    const links = [];
+    if (r.website_url)
+        links.push(`<a href="${escAttr(r.website_url)}" target="_blank" rel="noopener">${escHtml(r.website_url)}</a>`);
+    if (r.linkedin_url)
+        links.push(`<a href="${escAttr(r.linkedin_url)}" target="_blank" rel="noopener">${escHtml(r.linkedin_url)}</a>`);
+    if (r.contact_url)
+        links.push(`<a href="${escAttr(r.contact_url)}" target="_blank" rel="noopener">${escHtml(r.contact_url)}</a>`);
+    if (r.detail_page_url)
+        links.push(`<a href="${escAttr(r.detail_page_url)}" target="_blank" rel="noopener">Conference page</a>`);
+
+    const cats = (r.categories || []).map(c => `<span class="cat-tag">${escHtml(c)}</span>`).join('');
+
+    let cisBadge = '';
+    if (r.russian_speaking_leaders) {
+        cisBadge = `<div class="detail-field"><strong>CIS Contact:</strong> \u{1F1F7}\u{1F1FA} ${escHtml(r.russian_speaking_leaders)}</div>`;
+    }
+
+    detailTr.innerHTML = `
+        <td colspan="5" class="detail-cell">
+            <div class="detail-panel">
+                <div class="detail-grid">
+                    <div class="detail-main">
+                        ${r.reasoning ? `<div class="detail-field"><strong>Why this matches:</strong> ${escHtml(r.reasoning)}</div>` : ''}
+                        ${r.description ? `<div class="detail-field"><strong>Description:</strong> ${escHtml(r.description)}</div>` : ''}
+                        ${cats ? `<div class="detail-field"><strong>Categories:</strong> ${cats}</div>` : ''}
+                        ${cisBadge}
+                    </div>
+                    <div class="detail-links">
+                        <strong>Links</strong>
+                        ${links.map(l => `<div>${l}</div>`).join('')}
+                        ${r.booth_location ? `<div class="detail-booth">Booth: ${escHtml(r.booth_location)}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        </td>
+    `;
+
+    row.after(detailTr);
 }
 
 function sortResults(field) {
@@ -283,6 +341,12 @@ function escHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+function escAttr(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+              .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function formatDate(dateStr) {
